@@ -2,6 +2,7 @@
 #include "EditorPopup.hpp"
 #include <Geode/modify/EditorUI.hpp>
 #include <Geode/modify/EditorPauseLayer.hpp>
+#include <Geode/modify/LevelEditorLayer.hpp>
 
 using namespace geode::prelude;
 
@@ -79,7 +80,6 @@ static void collectAndSave(LevelEditorLayer* editor) {
             if (std::abs(out.positions[i].x - ax) < 1.f) { out.active = (int)i; break; }
         }
     }
-    if (out.active == -1 && !out.positions.empty()) out.active = (int)out.positions.size() - 1;
 
     storage::save(g_session.target, out);
     g_session.before = out;
@@ -127,9 +127,41 @@ class $modify(SPEditorUI, EditorUI) {
         EditorUI::onPaste(s);
     }
 
+    bool shouldDeleteObject(GameObject* obj) {
+        if (restricted() && !allowed(obj)) return false;
+        return EditorUI::shouldDeleteObject(obj);
+    }
+
+    void onDeleteSelected(CCObject* s) {
+        if (restricted()) {
+            // drop anything that isn't a start position from the selection first
+            if (m_selectedObject && !allowed(m_selectedObject)) this->deselectAll();
+            if (m_selectedObjects) {
+                auto keep = CCArray::create();
+                for (auto o : CCArrayExt<GameObject*>(m_selectedObjects)) if (allowed(o)) keep->addObject(o);
+                this->deselectAll();
+                if (keep->count()) this->selectObjects(keep, true);
+            }
+        }
+        EditorUI::onDeleteSelected(s);
+    }
+
     void onDeleteSelectedType(CCObject* s) {
         if (restricted()) return; // could delete non-startpos objects
         EditorUI::onDeleteSelectedType(s);
+    }
+};
+
+// Single choke point: every deletion (delete button/key, swipe, delete tool,
+// undo/redo, delete-all, filters) ends up in removeObject. Block non-startpos objects.
+class $modify(SPLevelEditorLayer, LevelEditorLayer) {
+    void removeObject(GameObject* obj, bool noUndo) {
+        if (restricted() && !allowed(obj)) return;
+        LevelEditorLayer::removeObject(obj, noUndo);
+    }
+    void removeAllObjectsOfType(int id) {
+        if (restricted() && id != 31) return;
+        LevelEditorLayer::removeAllObjectsOfType(id);
     }
 };
 

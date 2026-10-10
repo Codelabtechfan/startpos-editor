@@ -3,7 +3,7 @@
 	"gd": { "win": "2.2081", "android": "2.2081", "mac": "2.2081", "ios": "2.2081" },
 	"id": "cookiegamer.startpos-editor",
 	"name": "StartPos Editor",
-	"version": "v1.1.0",
+	"version": "v1.2.0",
 	"developer": "Cookie Gamer",
 	"description": "Add, save and remove start positions anywhere in any level, including main levels."
 }

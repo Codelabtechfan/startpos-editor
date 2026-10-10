@@ -55,14 +55,14 @@ class $modify(SPLevelPage, LevelPage) {
 // Replace the level's start positions with the saved ones (only the chosen one is used).
 class $modify(SPPlayLayer, PlayLayer) {
     void prepareCreateObjectsFromSetup(gd::string& levelString) {
-        if (m_level && storage::has(m_level)) {
+        if (m_level) { // always: no chosen start pos = start from 0%
             auto data = storage::load(m_level);
             std::string str = levelString;
             if (!str.empty() && str.find(';') == std::string::npos) {
                 str = ZipUtils::decompressString(str, false, 0);
             }
             levelString = storage::applySaved(str, data, false);
-            log::info("Applied saved start positions (active {})", data.active);
+            
         }
         PlayLayer::prepareCreateObjectsFromSetup(levelString);
     }
