@@ -28,11 +28,39 @@ static void addButtonToInfoPopup(GJGameLevel* level) {
     popup->m_mainLayer->addChild(menu, 20);
 }
 
-// Online / your own levels: button inside the level's info popup ("i" button).
+// Online / your own levels: button inside the level stats popup (small blue "i" icon,
+// LevelInfoLayer::onLevelInfo). Added to the popup's own m_buttonMenu so touches work.
 class $modify(SPLevelInfoLayer, LevelInfoLayer) {
-    void onInfo(CCObject* sender) {
-        LevelInfoLayer::onInfo(sender);
-        addButtonToInfoPopup(m_level);
+    void onLevelInfo(CCObject* sender) {
+        LevelInfoLayer::onLevelInfo(sender);
+        if (!m_level) return;
+        auto scene = CCDirector::get()->getRunningScene();
+        if (!scene) return;
+        FLAlertLayer* popup = nullptr;
+        for (auto child : CCArrayExt<CCNode*>(scene->getChildren())) {
+            if (auto a = typeinfo_cast<FLAlertLayer*>(child)) popup = a; // newest one
+        }
+        if (!popup || !popup->m_buttonMenu) return;
+        if (popup->m_buttonMenu->getChildByID("startpos-editor-button"_spr)) return;
+
+        auto btn = makeStartPosButton(popup->m_buttonMenu, m_level);
+        btn->setScale(0.7f);
+        btn->m_baseScale = 0.7f;
+
+        // Put it to the right of the OK button (or the menu's centre), with a clear gap.
+        CCPoint okWorld;
+        float okHalf = 40.f;
+        auto items = popup->m_buttonMenu->getChildren();
+        if (items && items->count() > 0) {
+            auto ok = static_cast<CCNode*>(items->objectAtIndex(0));
+            okWorld = popup->m_buttonMenu->convertToWorldSpace(ok->getPosition());
+            okHalf = ok->getScaledContentSize().width / 2;
+        } else {
+            okWorld = popup->m_buttonMenu->convertToWorldSpace({0, 0});
+        }
+        CCPoint target = okWorld + CCPoint{okHalf + 45.f, 0.f};
+        btn->setPosition(popup->m_buttonMenu->convertToNodeSpace(target));
+        popup->m_buttonMenu->addChild(btn);
     }
 };
 
