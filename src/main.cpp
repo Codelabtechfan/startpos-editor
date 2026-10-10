@@ -2,20 +2,14 @@
 #include <Geode/modify/LevelInfoLayer.hpp>
 #include <Geode/modify/LevelPage.hpp>
 #include <Geode/modify/PlayLayer.hpp>
+#include <Geode/modify/FLAlertLayer.hpp>
 #include "EditorPopup.hpp"
 
 using namespace geode::prelude;
 
-// Adds the start position button to the newest info popup (FLAlertLayer) in the scene.
-static void addButtonToInfoPopup(GJGameLevel* level) {
-    if (!level) return;
-    auto scene = CCDirector::get()->getRunningScene();
-    if (!scene) return;
-    FLAlertLayer* popup = nullptr;
-    for (auto child : CCArrayExt<CCNode*>(scene->getChildren())) {
-        if (auto a = typeinfo_cast<FLAlertLayer*>(child)) popup = a; // newest one
-    }
-    if (!popup || !popup->m_mainLayer) return;
+// Shared placement: same position/scale for main-level and online-level popups.
+static void attachButton(FLAlertLayer* popup, GJGameLevel* level) {
+    if (!popup || !level || !popup->m_mainLayer) return;
     if (popup->m_mainLayer->getChildByIDRecursive("startpos-editor-button"_spr)) return;
     auto win = CCDirector::get()->getWinSize();
     auto menu = CCMenu::create();
@@ -28,39 +22,41 @@ static void addButtonToInfoPopup(GJGameLevel* level) {
     popup->m_mainLayer->addChild(menu, 20);
 }
 
-// Online / your own levels: button inside the level stats popup (small blue "i" icon,
-// LevelInfoLayer::onLevelInfo). Added to the popup's own m_buttonMenu so touches work.
+static FLAlertLayer* newestAlert() {
+    auto scene = CCDirector::get()->getRunningScene();
+    if (!scene) return nullptr;
+    FLAlertLayer* popup = nullptr;
+    for (auto child : CCArrayExt<CCNode*>(scene->getChildren())) {
+        if (auto a = typeinfo_cast<FLAlertLayer*>(child)) popup = a;
+    }
+    return popup;
+}
+
+static void addButtonToInfoPopup(GJGameLevel* level) { attachButton(newestAlert(), level); }
+
+// Level whose stats popup is about to be shown (set during LevelInfoLayer::onLevelInfo).
+static GJGameLevel* g_pendingStatsLevel = nullptr;
+
+class $modify(SPAlert, FLAlertLayer) {
+    void show() {
+        FLAlertLayer::show();
+        if (g_pendingStatsLevel) {
+            auto lvl = g_pendingStatsLevel;
+            g_pendingStatsLevel = nullptr;
+            attachButton(this, lvl);
+        }
+    }
+};
+
+// Online / your own levels: button inside the level stats popup (small blue "i" icon).
 class $modify(SPLevelInfoLayer, LevelInfoLayer) {
     void onLevelInfo(CCObject* sender) {
+        g_pendingStatsLevel = m_level;
         LevelInfoLayer::onLevelInfo(sender);
-        if (!m_level) return;
-        auto scene = CCDirector::get()->getRunningScene();
-        if (!scene) return;
-        FLAlertLayer* popup = nullptr;
-        for (auto child : CCArrayExt<CCNode*>(scene->getChildren())) {
-            if (auto a = typeinfo_cast<FLAlertLayer*>(child)) popup = a; // newest one
-        }
-        if (!popup || !popup->m_buttonMenu) return;
-        if (popup->m_buttonMenu->getChildByID("startpos-editor-button"_spr)) return;
-
-        auto btn = makeStartPosButton(popup->m_buttonMenu, m_level);
-        btn->setScale(0.7f);
-        btn->m_baseScale = 0.7f;
-
-        // Put it to the right of the OK button (or the menu's centre), with a clear gap.
-        CCPoint okWorld;
-        float okHalf = 40.f;
-        auto items = popup->m_buttonMenu->getChildren();
-        if (items && items->count() > 0) {
-            auto ok = static_cast<CCNode*>(items->objectAtIndex(0));
-            okWorld = popup->m_buttonMenu->convertToWorldSpace(ok->getPosition());
-            okHalf = ok->getScaledContentSize().width / 2;
-        } else {
-            okWorld = popup->m_buttonMenu->convertToWorldSpace({0, 0});
-        }
-        CCPoint target = okWorld + CCPoint{okHalf + 45.f, 0.f};
-        btn->setPosition(popup->m_buttonMenu->convertToNodeSpace(target));
-        popup->m_buttonMenu->addChild(btn);
+        g_pendingStatsLevel = nullptr;
+        // Fallback in case show() is deferred/overridden: try again next frame.
+        Ref<GJGameLevel> lvl = m_level;
+        Loader::get()->queueInMainThread([lvl] { addButtonToInfoPopup(lvl); });
     }
 };
 
