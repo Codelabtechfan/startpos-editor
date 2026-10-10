@@ -52,18 +52,17 @@ class $modify(SPLevelPage, LevelPage) {
     }
 };
 
-// Inject the selected start position into the level when it loads.
+// Replace the level's start positions with the saved ones (only the chosen one is used).
 class $modify(SPPlayLayer, PlayLayer) {
     void prepareCreateObjectsFromSetup(gd::string& levelString) {
-        if (m_level) {
+        if (m_level && storage::has(m_level)) {
             auto data = storage::load(m_level);
-            if (data.active >= 0 && data.active < (int)data.positions.size()) {
-                std::string str = levelString;
-                if (!str.empty() && str.back() != ';') str += ";";
-                str += storage::objectString(data.positions[data.active]) + ";";
-                levelString = str;
-                log::info("Injected start position {} at x={}", data.active, data.positions[data.active].x);
+            std::string str = levelString;
+            if (!str.empty() && str.find(';') == std::string::npos) {
+                str = ZipUtils::decompressString(str, false, 0);
             }
+            levelString = storage::applySaved(str, data, false);
+            log::info("Applied saved start positions (active {})", data.active);
         }
         PlayLayer::prepareCreateObjectsFromSetup(levelString);
     }

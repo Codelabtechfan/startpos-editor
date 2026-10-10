@@ -19,10 +19,19 @@ struct LevelStartPosData {
 
 namespace storage {
     std::string keyFor(GJGameLevel* level);
+    bool has(GJGameLevel* level);
+    void erase(GJGameLevel* level);
     LevelStartPosData load(GJGameLevel* level);
     void save(GJGameLevel* level, LevelStartPosData const& data);
     std::string objectString(SavedStartPos const& sp);
-    float estimateLevelLength(GJGameLevel* level);
+    // Raw (decompressed) object string of a level, main levels included.
+    std::string rawLevelString(GJGameLevel* level);
+    // Removes every start position (object id 31) from a decompressed level string.
+    std::string stripStartPositions(std::string const& str);
+    bool isStartPosObject(std::string const& obj);
+    // Level string as the player/editor should see it: original start positions are
+    // replaced by our saved ones (all of them if `all`, else only the active one).
+    std::string applySaved(std::string const& raw, LevelStartPosData const& data, bool all);
     char const* gamemodeName(int mode);
     char const* speedName(int speed);
 }

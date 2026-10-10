@@ -15,6 +15,19 @@ std::string storage::keyFor(GJGameLevel* level) {
     return fmt::format("online-{}", level->m_levelID.value());
 }
 
+bool storage::has(GJGameLevel* level) {
+    auto root = Mod::get()->getSavedValue<matjson::Value>("levels");
+    return root.isObject() && root.contains(keyFor(level));
+}
+
+void storage::erase(GJGameLevel* level) {
+    auto root = Mod::get()->getSavedValue<matjson::Value>("levels");
+    if (!root.isObject()) return;
+    (void)root.erase(keyFor(level));
+    Mod::get()->setSavedValue("levels", root);
+    (void)Mod::get()->saveData();
+}
+
 LevelStartPosData storage::load(GJGameLevel* level) {
     LevelStartPosData out;
     auto root = Mod::get()->getSavedValue<matjson::Value>("levels");
@@ -58,27 +71,59 @@ std::string storage::objectString(SavedStartPos const& sp) {
         sp.x, sp.y, sp.gamemode, sp.mini ? 1 : 0, sp.speed, sp.flipped ? 1 : 0);
 }
 
-float storage::estimateLevelLength(GJGameLevel* level) {
+std::string storage::rawLevelString(GJGameLevel* level) {
     std::string raw;
     if (isMainLevel(level)) raw = LocalLevelManager::sharedState()->getMainLevelString(level->m_levelID.value());
     else raw = level->m_levelString;
-    if (raw.empty()) return 30000.f;
-    std::string str = raw;
-    if (raw.find(';') == std::string::npos) {
-        str = ZipUtils::decompressString(raw, false, 0);
+    if (!raw.empty() && raw.find(';') == std::string::npos) {
+        raw = ZipUtils::decompressString(raw, false, 0);
     }
-    float maxX = 0.f;
-    size_t pos = str.find(';'); // skip level header
-    while (pos != std::string::npos) {
-        size_t next = str.find(';', pos + 1);
-        auto obj = str.substr(pos + 1, next == std::string::npos ? std::string::npos : next - pos - 1);
-        auto k = obj.find(",2,");
-        if (k != std::string::npos) {
-            maxX = std::max(maxX, std::strtof(obj.c_str() + k + 3, nullptr));
+    return raw;
+}
+
+bool storage::isStartPosObject(std::string const& obj) {
+    // objects are "key,value,key,value,..."; key 1 is the object id
+    size_t i = 0;
+    while (i < obj.size()) {
+        size_t c1 = obj.find(',', i);
+        if (c1 == std::string::npos) return false;
+        size_t c2 = obj.find(',', c1 + 1);
+        auto key = obj.substr(i, c1 - i);
+        auto val = obj.substr(c1 + 1, c2 == std::string::npos ? std::string::npos : c2 - c1 - 1);
+        if (key == "1") return val == "31";
+        if (c2 == std::string::npos) return false;
+        i = c2 + 1;
+    }
+    return false;
+}
+
+std::string storage::stripStartPositions(std::string const& str) {
+    std::string out;
+    out.reserve(str.size());
+    size_t start = 0;
+    bool first = true; // first chunk is the level header
+    while (start < str.size()) {
+        size_t end = str.find(';', start);
+        auto chunk = str.substr(start, end == std::string::npos ? std::string::npos : end - start);
+        if (first || !isStartPosObject(chunk)) {
+            if (!chunk.empty() || first) { out += chunk; out += ';'; }
         }
-        pos = next;
+        first = false;
+        if (end == std::string::npos) break;
+        start = end + 1;
     }
-    return maxX > 100.f ? maxX : 30000.f;
+    return out;
+}
+
+std::string storage::applySaved(std::string const& raw, LevelStartPosData const& data, bool all) {
+    auto str = stripStartPositions(raw);
+    if (!str.empty() && str.back() != ';') str += ';';
+    if (all) {
+        for (auto& sp : data.positions) str += objectString(sp) + ";";
+    } else if (data.active >= 0 && data.active < (int)data.positions.size()) {
+        str += objectString(data.positions[data.active]) + ";";
+    }
+    return str;
 }
 
 char const* storage::gamemodeName(int m) {
