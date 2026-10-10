@@ -52,18 +52,49 @@ class $modify(SPLevelPage, LevelPage) {
     }
 };
 
-// Replace the level's start positions with the saved ones (only the chosen one is used).
+// Keep ALL start positions in the level (saved list if any, otherwise the originals) so
+// start-pos switcher mods can see and cycle them. Only on the initial load, pick which one
+// is active: the one chosen with "Use", or none (start from 0%).
 class $modify(SPPlayLayer, PlayLayer) {
+    struct Fields {
+        std::vector<StartPosObject*> startPositions;
+        bool appliedInitial = false;
+    };
+
     void prepareCreateObjectsFromSetup(gd::string& levelString) {
-        if (m_level) { // always: no chosen start pos = start from 0%
+        if (m_level && storage::has(m_level)) {
             auto data = storage::load(m_level);
             std::string str = levelString;
             if (!str.empty() && str.find(';') == std::string::npos) {
                 str = ZipUtils::decompressString(str, false, 0);
             }
-            levelString = storage::applySaved(str, data, false);
-            
+            levelString = storage::applySaved(str, data, true);
         }
         PlayLayer::prepareCreateObjectsFromSetup(levelString);
+    }
+
+    void addObject(GameObject* obj) {
+        PlayLayer::addObject(obj);
+        if (obj && obj->m_objectID == 31) {
+            if (auto sp = typeinfo_cast<StartPosObject*>(obj)) m_fields->startPositions.push_back(sp);
+        }
+    }
+
+    void setupHasCompleted() {
+        if (!m_fields->appliedInitial && m_level) {
+            m_fields->appliedInitial = true;
+            StartPosObject* chosen = nullptr;
+            auto data = storage::load(m_level);
+            if (data.active >= 0 && data.active < (int)data.positions.size()) {
+                auto& want = data.positions[data.active];
+                float best = 5.f;
+                for (auto sp : m_fields->startPositions) {
+                    float d = std::abs(sp->getPositionX() - want.x) + std::abs(sp->getPositionY() - want.y);
+                    if (d < best) { best = d; chosen = sp; }
+                }
+            }
+            this->setStartPosObject(chosen); // nullptr = start from 0%
+        }
+        PlayLayer::setupHasCompleted();
     }
 };
