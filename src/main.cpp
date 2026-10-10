@@ -80,20 +80,41 @@ class $modify(SPPlayLayer, PlayLayer) {
         }
     }
 
-    void setupHasCompleted() {
-        if (!m_fields->appliedInitial && m_level) {
+    StartPosObject* findChosen() {
+        if (!m_level) return nullptr;
+        auto data = storage::load(m_level);
+        if (data.active < 0 || data.active >= (int)data.positions.size()) return nullptr;
+        auto& want = data.positions[data.active];
+        StartPosObject* chosen = nullptr;
+        float best = 5.f;
+        for (auto sp : m_fields->startPositions) {
+            float d = std::abs(sp->getPositionX() - want.x) + std::abs(sp->getPositionY() - want.y);
+            if (d < best) { best = d; chosen = sp; }
+        }
+        return chosen;
+    }
+
+    void applyChoice() {
+        auto chosen = findChosen();
+        this->setStartPosObject(chosen); // nullptr = start from 0%
+        m_isTestMode = chosen != nullptr;
+        this->updateTestModeLabel();
+    }
+
+    // Switcher mods (e.g. capeling's StartPos Switcher) read m_startPosObject right after
+    // this function to work out their n/N index, so set our choice BEFORE calling it.
+    void createObjectsFromSetupFinished() {
+        if (!m_fields->appliedInitial) {
             m_fields->appliedInitial = true;
-            StartPosObject* chosen = nullptr;
-            auto data = storage::load(m_level);
-            if (data.active >= 0 && data.active < (int)data.positions.size()) {
-                auto& want = data.positions[data.active];
-                float best = 5.f;
-                for (auto sp : m_fields->startPositions) {
-                    float d = std::abs(sp->getPositionX() - want.x) + std::abs(sp->getPositionY() - want.y);
-                    if (d < best) { best = d; chosen = sp; }
-                }
-            }
-            this->setStartPosObject(chosen); // nullptr = start from 0%
+            applyChoice();
+        }
+        PlayLayer::createObjectsFromSetupFinished();
+    }
+
+    void setupHasCompleted() {
+        if (!m_fields->appliedInitial) { // fallback if the above didn't run
+            m_fields->appliedInitial = true;
+            applyChoice();
         }
         PlayLayer::setupHasCompleted();
     }
