@@ -8,7 +8,7 @@
 	},
 	"id": "cookiegamer.startpos-editor",
 	"name": "StartPos Editor",
-	"version": "v1.3.0",
+	"version": "v1.4.0",
 	"developer": "Cookie Gamer",
 	"description": "Add, move and remove start positions in any level, including RobTop levels.",
 	"dependencies": {

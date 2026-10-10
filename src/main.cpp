@@ -6,24 +6,33 @@
 
 using namespace geode::prelude;
 
-// Online / your own uploaded levels: button right next to the Play button.
+// Adds the start position button to the newest info popup (FLAlertLayer) in the scene.
+static void addButtonToInfoPopup(GJGameLevel* level) {
+    if (!level) return;
+    auto scene = CCDirector::get()->getRunningScene();
+    if (!scene) return;
+    FLAlertLayer* popup = nullptr;
+    for (auto child : CCArrayExt<CCNode*>(scene->getChildren())) {
+        if (auto a = typeinfo_cast<FLAlertLayer*>(child)) popup = a; // newest one
+    }
+    if (!popup || !popup->m_mainLayer) return;
+    if (popup->m_mainLayer->getChildByIDRecursive("startpos-editor-button"_spr)) return;
+    auto win = CCDirector::get()->getWinSize();
+    auto menu = CCMenu::create();
+    menu->setPosition({win.width / 2 + 150.f, win.height / 2 - 60.f});
+    auto btn = makeStartPosButton(menu, level);
+    btn->setScale(0.8f);
+    btn->m_baseScale = 0.8f;
+    menu->addChild(btn);
+    menu->setTouchPriority(popup->m_buttonMenu ? popup->m_buttonMenu->getTouchPriority() : -502);
+    popup->m_mainLayer->addChild(menu, 20);
+}
+
+// Online / your own levels: button inside the level's info popup ("i" button).
 class $modify(SPLevelInfoLayer, LevelInfoLayer) {
-    bool init(GJGameLevel* level, bool challenge) {
-        if (!LevelInfoLayer::init(level, challenge)) return false;
-        auto menu = this->getChildByID("play-menu");
-        auto play = menu ? menu->getChildByID("play-button") : nullptr;
-        auto btn = makeStartPosButton(this, level);
-        if (menu && play) {
-            btn->setPosition(play->getPosition() + CCPoint{play->getScaledContentSize().width / 2 + 35.f, 0.f});
-            menu->addChild(btn);
-        } else {
-            auto m = CCMenu::create();
-            auto win = CCDirector::get()->getWinSize();
-            m->setPosition({win.width / 2 + 90.f, win.height / 2 + 50.f});
-            m->addChild(btn);
-            this->addChild(m, 10);
-        }
-        return true;
+    void onInfo(CCObject* sender) {
+        LevelInfoLayer::onInfo(sender);
+        addButtonToInfoPopup(m_level);
     }
 };
 
@@ -32,23 +41,7 @@ class $modify(SPLevelPage, LevelPage) {
     void onInfo(CCObject* sender) {
         LevelPage::onInfo(sender);
         if (!m_level || m_level->m_levelID.value() <= 0) return; // skip "coming soon"/tower pages
-        auto scene = CCDirector::get()->getRunningScene();
-        if (!scene) return;
-        FLAlertLayer* popup = nullptr;
-        for (auto child : CCArrayExt<CCNode*>(scene->getChildren())) {
-            if (auto a = typeinfo_cast<FLAlertLayer*>(child)) popup = a; // newest one
-        }
-        if (!popup || !popup->m_mainLayer) return;
-        auto win = CCDirector::get()->getWinSize();
-        auto menu = CCMenu::create();
-        menu->setPosition({win.width / 2 + 150.f, win.height / 2 - 60.f});
-        auto btn = makeStartPosButton(menu, m_level);
-        btn->setScale(0.8f);
-        btn->m_baseScale = 0.8f;
-        menu->addChild(btn);
-        // FLAlertLayer has its own touch priority; register our menu at the same priority
-        menu->setTouchPriority(popup->m_buttonMenu ? popup->m_buttonMenu->getTouchPriority() : -502);
-        popup->m_mainLayer->addChild(menu, 20);
+        addButtonToInfoPopup(m_level);
     }
 };
 
