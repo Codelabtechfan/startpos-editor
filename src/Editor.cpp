@@ -36,7 +36,7 @@ void openStartPosEditor(GJGameLevel* level) {
     // Work on a throwaway copy so the real level is never touched.
     auto copy = GJGameLevel::create();
     copy->m_levelName = level->m_levelName;
-    copy->m_levelString = ZipUtils::compressString(str, false, 0);
+    copy->m_levelString = ZipUtils::compressString(str, false, -1, 0);
     copy->m_audioTrack = level->m_audioTrack;
     copy->m_songID = level->m_songID;
     copy->m_songIDs = level->m_songIDs;
@@ -163,13 +163,18 @@ class $modify(SPLevelEditorLayer, LevelEditorLayer) {
         if (restricted() && id != 31) return;
         LevelEditorLayer::removeAllObjectsOfType(id);
     }
+    // EditorPauseLayer::saveLevel is inline on Windows in 2.2091 and just
+    // calls this, so hook here to keep the throwaway editor from being saved.
+    bool saveLevel() {
+        if (restricted()) {
+            collectAndSave(this);
+            return true;
+        }
+        return LevelEditorLayer::saveLevel();
+    }
 };
 
 class $modify(SPEditorPauseLayer, EditorPauseLayer) {
-    void saveLevel() {
-        if (!restricted()) return EditorPauseLayer::saveLevel();
-        collectAndSave(m_editorLayer); // never save the level itself
-    }
     void onSave(CCObject* s) {
         if (!restricted()) return EditorPauseLayer::onSave(s);
         collectAndSave(m_editorLayer);
