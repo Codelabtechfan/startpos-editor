@@ -78,7 +78,7 @@ class $modify(SPPlayLayer, PlayLayer) {
         bool appliedInitial = false;
     };
 
-    void prepareCreateObjectsFromSetup(gd::string& levelString) {
+    void prepareCreateObjectsFromSetup(std::string& levelString) {
         if (m_level && storage::has(m_level)) {
             auto data = storage::load(m_level);
             std::string str = levelString;
@@ -113,7 +113,7 @@ class $modify(SPPlayLayer, PlayLayer) {
 
     void applyChoice() {
         auto chosen = findChosen();
-        this->setStartPosObject(chosen); // nullptr = start from 0%
+        this->setActiveStartPosObject(chosen); // nullptr = start from 0%
         m_isTestMode = chosen != nullptr;
         this->updateTestModeLabel();
     }
