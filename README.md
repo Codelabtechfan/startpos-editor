@@ -6,6 +6,7 @@ Add, save and remove start positions anywhere in any level, including main level
 * **Main levels (Stereo Madness etc.):** tap the "i" (info) button on the level page; the button is inside that info popup.
 * **Editor:** drag the slider (or type an X position) to pick a spot, choose game mode, speed, mini and flipped gravity, then press **Add**.
   Press **Use** on any saved one to make it the one you start from (green = active), the red bin removes it, and **Play from start** turns it off.
+* **In-game switcher:** press **Q** (previous) or **E** (next), or the on-screen arrows, to cycle start positions while playing, including starting from 0%. The label shows the current index (for example `2/5`). Turn it off, hide the arrows, rebind the keys, or change the idle opacity in the mod settings. **Use** also sets the switcher's current index.
 * Everything is saved per level automatically.
 
 ## Get the .geode file (no programming needed)
@@ -22,5 +23,5 @@ Add, save and remove start positions anywhere in any level, including main level
 Install the Geode CLI + SDK (`geode sdk install`), Visual Studio 2022 with C++ tools, CMake, then run `geode build`.
 
 ## Notes
-* Only the **active** start position is loaded into the level when you play (switch with **Use**).
+* All saved start positions are loaded into the level when you play, so you can cycle them with the built-in switcher. **Use** (or **Play from start**) picks which one you begin at.
 * Progress from start positions does not count, the same as normal start positions in GD.

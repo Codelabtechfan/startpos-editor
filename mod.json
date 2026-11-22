@@ -8,13 +8,47 @@
 	},
 	"id": "cookiegamer.startpos-editor",
 	"name": "StartPos Editor",
-	"version": "v1.4.3",
+	"version": "v1.5.0",
 	"developer": "Cookie Gamer",
 	"description": "Add, move and remove start positions in any level, including RobTop levels.",
-	"dependencies": {
-		"capeling.startpos_switcher": {
-			"version": ">=1.0.10",
-			"importance": "recommended"
+	"settings": {
+		"enable-switcher": {
+			"type": "bool",
+			"name": "Enable built-in StartPos Switcher",
+			"description": "Cycle start positions while playing with the previous/next keys and on-screen arrows. Automatically turned off if Capeling's Startpos Switcher is loaded, to avoid a conflict.",
+			"default": true
+		},
+		"previous-startpos": {
+			"type": "keybind",
+			"name": "Previous Start Position",
+			"description": "Switch to the previous start position, wrapping around. Index 0 is start from 0%.",
+			"default": "Q",
+			"category": "gameplay"
+		},
+		"next-startpos": {
+			"type": "keybind",
+			"name": "Next Start Position",
+			"description": "Switch to the next start position, wrapping around. Index 0 is start from 0%.",
+			"default": "E",
+			"category": "gameplay"
+		},
+		"hide-switcher-buttons": {
+			"type": "bool",
+			"name": "Hide Switcher Buttons",
+			"description": "Hides the on-screen left and right arrow buttons. The index label and keybinds still work.",
+			"default": false
+		},
+		"switcher-opacity": {
+			"type": "int",
+			"name": "Switcher Idle Opacity",
+			"description": "How visible the switcher stays after it fades. 0 is invisible, 100 is fully visible. After the level starts or you switch start position, it shows at full opacity for half a second, then fades to this value.",
+			"default": 50,
+			"min": 0,
+			"max": 100,
+			"control": {
+				"slider": true,
+				"slider-step": 1
+			}
 		}
 	}
 }

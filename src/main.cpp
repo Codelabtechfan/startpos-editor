@@ -4,6 +4,7 @@
 #include <Geode/modify/PlayLayer.hpp>
 #include <Geode/modify/FLAlertLayer.hpp>
 #include "EditorPopup.hpp"
+#include "Switcher.hpp"
 
 using namespace geode::prelude;
 
@@ -70,12 +71,13 @@ class $modify(SPLevelPage, LevelPage) {
 };
 
 // Keep ALL start positions in the level (saved list if any, otherwise the originals) so
-// start-pos switcher mods can see and cycle them. Only on the initial load, pick which one
-// is active: the one chosen with "Use", or none (start from 0%).
+// the built-in switcher can cycle them. On the initial load, pick which one is active:
+// the one chosen with "Use", or none (start from 0%).
 class $modify(SPPlayLayer, PlayLayer) {
     struct Fields {
         std::vector<StartPosObject*> startPositions;
         bool appliedInitial = false;
+        int switcherIndex = 0; // 0 = from start, 1..N = start positions in X order
     };
 
     void prepareCreateObjectsFromSetup(std::string& levelString) {
@@ -118,14 +120,15 @@ class $modify(SPPlayLayer, PlayLayer) {
         this->updateTestModeLabel();
     }
 
-    // Switcher mods (e.g. capeling's StartPos Switcher) read m_startPosObject right after
-    // this function to work out their n/N index, so set our choice BEFORE calling it.
+    // Apply the "Use" choice before the original function returns, then sync the
+    // built-in switcher's index (0 = from start) to that choice.
     void createObjectsFromSetupFinished() {
         if (!m_fields->appliedInitial) {
             m_fields->appliedInitial = true;
             applyChoice();
         }
         PlayLayer::createObjectsFromSetupFinished();
+        switcher::syncIndexFromActive();
     }
 
     void setupHasCompleted() {
@@ -134,5 +137,48 @@ class $modify(SPPlayLayer, PlayLayer) {
             applyChoice();
         }
         PlayLayer::setupHasCompleted();
+        switcher::syncIndexFromActive();
     }
 };
+
+bool switcher::view(int& index, int& count) {
+    auto play = static_cast<SPPlayLayer*>(PlayLayer::get());
+    if (!play) { index = 0; count = 0; return false; }
+    index = play->m_fields->switcherIndex;
+    count = (int)play->m_fields->startPositions.size();
+    return true;
+}
+
+void switcher::syncIndexFromActive() {
+    auto play = static_cast<SPPlayLayer*>(PlayLayer::get());
+    if (!play) return;
+    auto& list = play->m_fields->startPositions;
+    switcher::sortByX(list);
+    play->m_fields->switcherIndex = 0;
+    if (auto cur = play->m_startPosObject) {
+        for (int i = 0; i < (int)list.size(); i++) {
+            if (list[i] == cur) { play->m_fields->switcherIndex = i + 1; break; }
+        }
+    }
+    switcher::refreshUI();
+}
+
+void switcher::cycle(int delta) {
+    auto play = static_cast<SPPlayLayer*>(PlayLayer::get());
+    if (!play || !switcher::active() || play->m_isPaused) return;
+    auto& list = play->m_fields->startPositions;
+    if (list.empty()) return;
+    int n = (int)list.size();
+    int idx = play->m_fields->switcherIndex + delta;
+    if (idx < 0) idx = n;
+    if (idx > n) idx = 0;
+    play->m_fields->switcherIndex = idx;
+    auto obj = idx == 0 ? nullptr : list[idx - 1];
+    play->setActiveStartPosObject(obj);
+    play->m_isTestMode = obj != nullptr;
+    play->updateTestModeLabel();
+    if (play->m_isPracticeMode) play->resetLevelFromStart();
+    play->resetLevel();
+    play->startMusic();
+    switcher::refreshUI();
+}
